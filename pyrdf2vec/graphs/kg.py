@@ -89,6 +89,7 @@ class KG:
         file_type=None,
         label_predicates=None,
         is_remote=False,
+        endpoints=dict()
     ):
         self.file_type = file_type
         if label_predicates is None:
@@ -110,6 +111,15 @@ class KG:
                 raise ValueError(f"Invalid URL: {location}")
         else:
             self.read_file()
+
+        self.endpoints = dict()
+
+        for ns, endpoint in endpoints.items():
+            if is_valid_url(endpoint):
+                self.endpoints[ns] = SPARQLWrapper(endpoint)
+            else:
+                print(f"Warning: Invalid external endpoint: {endpoint}")
+
 
     def _get_rhops(self, vertex: str) -> List[Tuple[str, str]]:
         """Returns a hop (vertex -> predicate -> object)
@@ -134,6 +144,15 @@ class KG:
                 hops.append((pred, obj))
         return hops
 
+    def _find_endpoint(self, vertex: str):
+
+        for ns, endpoint in self.endpoints.items():
+            if vertex.startswith(ns):
+                print(f"Vertex {vertex} starts with ns {ns} => getting to endpoint {endpoint.endpoint}")
+                return endpoint
+
+        return self.endpoint
+
     @lru_cache(maxsize=1000)
     def _get_shops(self, vertex: str) -> List[Tuple[str, str]]:
         """Returns a hop (vertex -> predicate -> object)
@@ -147,7 +166,9 @@ class KG:
         """
         if not vertex.startswith("http://"):
             return []
-        self.endpoint.setQuery(
+
+        endpoint = self._find_endpoint(vertex)
+        endpoint.setQuery(
             """
         SELECT ?p ?o WHERE {
             <"""
@@ -156,9 +177,8 @@ class KG:
         }
         """
         )
-
-        self.endpoint.setReturnFormat(JSON)
-        results = self.endpoint.query().convert()
+        endpoint.setReturnFormat(JSON)
+        results = endpoint.query().convert()
         neighbors = []
         for result in results["results"]["bindings"]:
             predicate, obj = result["p"]["value"], result["o"]["value"]

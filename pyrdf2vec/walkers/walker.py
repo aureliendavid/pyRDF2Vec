@@ -95,10 +95,11 @@ class Walker(metaclass=abc.ABCMeta):
         walk_strs = []
         for _, walk in enumerate(walks):
             s = ""
+            #print(walk)
             for i in range(len(walk)):
                 s += f"{walk[i]} "
                 if i < len(walk) - 1:
-                    s += "--> "
+                    s += "-> "
             walk_strs.append(s)
 
         with open(file_name, "w+") as f:
